@@ -66,8 +66,9 @@ fragment Digit: [0-9];
 
 Constant: IntegerConstant | FloatingConstant | CharacterConstant;
 
-fragment IntegerConstant: NonzeroDigit Digit*;
+fragment IntegerConstant: (NonzeroDigit Digit*) | Zero;
 fragment NonzeroDigit: [1-9];
+fragment Zero: '0';
 
 fragment FloatingConstant: DigitSequence? '.' DigitSequence | DigitSequence '.';
 fragment DigitSequence: Digit+;
@@ -79,7 +80,7 @@ fragment EscapeSequence: '\\' ['"?abfnrtv\\];
 
 StringLiteral: '"' (SChar+)? '"';
 
-fragment SChar: ~["\\\r\n] |   EscapeSequence | '\\\n' | '\\\r\n';
+fragment SChar: ~["\\\r\n] | EscapeSequence | '\\\n' | '\\\r\n';
 
 
 Whitespace: [ \t]+ -> skip;
