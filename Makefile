@@ -6,7 +6,7 @@ UI_DIR = "ui"
 BUILD_DIR = "build"
 
 compile:
-	antlr4 -Dlanguage=Python2 -o $(BUILD_DIR) pcc.g
+	antlr4 -Dlanguage=Python2 -o $(BUILD_DIR) pcc.g4
 	pyuic4 -i 4 $(UI_DIR)/mainwindow.ui -o $(BUILD_DIR)/mainwindow.py
 
 clean:

@@ -72,13 +72,14 @@ fragment NonzeroDigit: [1-9];
 fragment FloatingConstant: DigitSequence? '.' DigitSequence | DigitSequence '.';
 fragment DigitSequence: Digit+;
 
-fragment CharacterConstant:  ~['\\\r\n] | EscapeSequence;
+fragment CharacterConstant:  '\'' (CChar+)? '\'';
+fragment CChar: ~['\\\r\n] | EscapeSequence;
 fragment EscapeSequence: '\\' ['"?abfnrtv\\];
 
 
-StringLiteral: '"' (SCharSequence+)? '"';
+StringLiteral: '"' (SChar+)? '"';
 
-fragment SCharSequence: ~["\\\r\n] |   EscapeSequence | '\\\n' | '\\\r\n';
+fragment SChar: ~["\\\r\n] |   EscapeSequence | '\\\n' | '\\\r\n';
 
 
 Whitespace: [ \t]+ -> skip;
