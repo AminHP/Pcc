@@ -30,8 +30,8 @@ class Manager:
             self.ui_mainwindow.tokenListWidget.clear()
             self.ui_mainwindow.lexerrListWidget.clear()
 
-            for token in tokens:
-                text = "%s:%s: %s" % (token.line, token.column, token.text)
+            for (sym, token) in tokens:
+                text = "%s:%s: %s -> %s" % (token.line, token.column, sym, token.text)
                 self.ui_mainwindow.tokenListWidget.addItem(text)
             for error in lexical_errors:
                 self.ui_mainwindow.lexerrListWidget.addItem(error.error_msg)

@@ -43,7 +43,7 @@ def get_tokens(lexer):
             next_token = l.nextToken()
             if next_token.type == next_token.EOF:
                 break
-            all_tokens.append(next_token)
+            all_tokens.append((l.symbolicNames[next_token.type], next_token))
         except SyntaxErrorException as e:
             all_errors.append(e)
             l.recover(e)
