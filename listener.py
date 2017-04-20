@@ -8,13 +8,32 @@ class pccPrintListener(pccListener):
         pass
 
 
-class pccErrorListener(ErrorListener):
+class pccLexerErrorListener(ErrorListener):
 
     def __init__(self):
-        super(pccErrorListener, self).__init__()
+        super(pccLexerErrorListener, self).__init__()
 
     def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
         raise SyntaxErrorException(line, column, msg)
+
+    def reportAmbiguity(self, recognizer, dfa, startIndex, stopIndex, exact, ambigAlts, configs):
+        raise Exception("")
+
+    def reportAttemptingFullContext(self, recognizer, dfa, startIndex, stopIndex, conflictingAlts, configs):
+        raise Exception("")
+
+    def reportContextSensitivity(self, recognizer, dfa, startIndex, stopIndex, prediction, configs):
+        raise Exception("")
+
+
+class pccParserErrorListener(ErrorListener):
+
+    def __init__(self):
+        super(pccParserErrorListener, self).__init__()
+        self.errors = []
+
+    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
+        self.errors.append(SyntaxErrorException(line, column, msg))
 
     def reportAmbiguity(self, recognizer, dfa, startIndex, stopIndex, exact, ambigAlts, configs):
         raise Exception("")

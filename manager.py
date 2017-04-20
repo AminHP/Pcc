@@ -25,16 +25,19 @@ class Manager:
     def actionCompile_cliecked(self):
         code = self.ui_mainwindow.codeTextEdit.toPlainText()
         if code:
-            tokens, lexical_errors = run(code)
+            tokens, lexical_errors, parsing_errors = run(code)
 
             self.ui_mainwindow.tokenListWidget.clear()
-            self.ui_mainwindow.lexerrListWidget.clear()
+            self.ui_mainwindow.lexerListWidget.clear()
+            self.ui_mainwindow.parserListWidget.clear()
 
             for (sym, token) in tokens:
                 text = "%s:%s: %s -> %s" % (token.line, token.column, sym, token.text)
                 self.ui_mainwindow.tokenListWidget.addItem(text)
             for error in lexical_errors:
-                self.ui_mainwindow.lexerrListWidget.addItem(error.error_msg)
+                self.ui_mainwindow.lexerListWidget.addItem(error.error_msg)
+            for error in parsing_errors:
+                self.ui_mainwindow.parserListWidget.addItem(error.error_msg)
 
 
 

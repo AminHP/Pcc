@@ -8,7 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build'
 from antlr4 import *
 from pccLexer import pccLexer
 from pccParser import pccParser
-from listener import pccPrintListener, pccErrorListener, SyntaxErrorException
+from listener import pccPrintListener, pccLexerErrorListener, pccParserErrorListener, SyntaxErrorException
 from antlr4.error.ErrorListener import ErrorListener
 
 
@@ -19,22 +19,24 @@ def load_code(code):
 def lex(code):
     lexer = pccLexer(code)
     lexer.removeErrorListeners()
-    lexer.addErrorListener(pccErrorListener());
     stream = CommonTokenStream(lexer)
     return lexer, stream
 
 
 def parse(stream):
     parser = pccParser(stream)
-    tree = parser.program()
-    printer = pccPrintListener()
-    walker = ParseTreeWalker()
-    walker.walk(printer, tree)
+    parser.removeErrorListeners()
+    parser.addErrorListener(pccParserErrorListener());
+    #tree = parser.program()
+    #printer = pccPrintListener()
+    #walker = ParseTreeWalker()
+    #walker.walk(printer, tree)
     return parser
 
 
 def get_tokens(lexer):
     l = deepcopy(lexer)
+    l.addErrorListener(pccLexerErrorListener());
     all_tokens = []
     all_errors = []
 
@@ -51,11 +53,20 @@ def get_tokens(lexer):
     return all_tokens, all_errors
 
 
+def get_rules(parser):
+    all_errors = []
+    parser.program()
+    all_errors = parser._listeners[-1].errors
+    return all_errors
+
+
+
 def run(code):
     lexer, stream = lex(load_code(code))
     tokens, lexical_errors = get_tokens(lexer)
-    #parse(stream)
-    return tokens, lexical_errors
+    parser = parse(stream)
+    parsing_errors = get_rules(parser)
+    return tokens, lexical_errors, parsing_errors
 
 
 

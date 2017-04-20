@@ -34,7 +34,7 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>2</number>
     </property>
     <widget class="QWidget" name="tokenTab">
      <attribute name="title">
@@ -51,11 +51,26 @@
       </property>
      </widget>
     </widget>
-    <widget class="QWidget" name="lexerrTab">
+    <widget class="QWidget" name="lexerTab">
      <attribute name="title">
       <string>Lexical Errors</string>
      </attribute>
-     <widget class="QListWidget" name="lexerrListWidget">
+     <widget class="QListWidget" name="lexerListWidget">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>841</width>
+        <height>121</height>
+       </rect>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="parserTab">
+     <attribute name="title">
+      <string>Parsing Errors</string>
+     </attribute>
+     <widget class="QListWidget" name="parserListWidget">
       <property name="geometry">
        <rect>
         <x>0</x>
@@ -79,7 +94,7 @@
    </property>
    <widget class="QMenu" name="menuFIle">
     <property name="title">
-     <string>FIle</string>
+     <string>File</string>
     </property>
     <addaction name="actionOpen"/>
     <addaction name="separator"/>
