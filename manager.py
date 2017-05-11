@@ -4,7 +4,7 @@ from PyQt4 import QtCore, QtGui
 from mainwindow import _fromUtf8
 
 from pcc import run
-
+import highlighter
 
 class Manager:
     def __init__(self, ui_mainwindow, mainwindow):
@@ -18,8 +18,10 @@ class Manager:
             'Open Code',
             filter = '*.c'
         )
+        h = highlighter.CHighlighter (self.ui_mainwindow.codeTextEdit.document())
+
         with open(code_path) as f:
-            self.ui_mainwindow.codeTextEdit.setText(f.read())
+            self.ui_mainwindow.codeTextEdit.setPlainText(f.read())
 
 
     def actionCompile_cliecked(self):
