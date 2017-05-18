@@ -96,4 +96,9 @@ float_dec: Float Id (Assign Constant)? Semi;
 char_dec: Char Id (Assign Constant)? Semi;
 decs: int_dec | float_dec | char_dec;
 
-program: (decs)*;
+ex: ((Id | Constant) (GE | GR | LE | LR | Equal | NotEqual) (Id | Constant)) |
+	(Not? (Id | Constant));
+
+if_st: If PO ex PC program;
+
+program: (decs | if_st) | (AO program AC);
