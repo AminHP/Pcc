@@ -2,13 +2,15 @@
 
 import sys
 import os
+import subprocess
 from copy import deepcopy
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build'))
 
 from antlr4 import *
 from pccLexer import pccLexer
 from pccParser import pccParser
-from listener import pccPrintListener, pccLexerErrorListener, pccParserErrorListener, SyntaxErrorException
+from print_listener import pccPrintListener
+from error_listener import pccLexerErrorListener, pccParserErrorListener, SyntaxErrorException
 from antlr4.error.ErrorListener import ErrorListener
 
 
@@ -27,11 +29,15 @@ def parse(stream):
     parser = pccParser(stream)
     parser.removeErrorListeners()
     parser.addErrorListener(pccParserErrorListener());
-    #tree = parser.program()
-    #printer = pccPrintListener()
-    #walker = ParseTreeWalker()
-    #walker.walk(printer, tree)
     return parser
+
+
+def get_bytecode(parser, name):
+    tree = parser.program()
+    printer = pccPrintListener(name)
+    walker = ParseTreeWalker()
+    walker.walk(printer, tree)
+    return printer.getBytecode()
 
 
 def get_tokens(lexer):
@@ -60,16 +66,35 @@ def get_rules(parser):
     return all_errors
 
 
+def jasmin(bytecode, name):
+    if not os.path.exists('output'):
+        os.mkdir('output')
+    bcfile = os.path.join('output', name + '.bc')
 
-def run(code):
+    with open(bcfile, 'w') as f:
+        f.write(bytecode)
+
+    p = subprocess.Popen(['java', '-jar', 'bin/jasmin.jar', '-d', 'output', bcfile], 
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = p.communicate()
+    if p[0]:
+        print p[0]
+    if p[1]:
+        print p[1]
+
+
+
+def run(code, name):
     lexer, stream = lex(load_code(code))
     tokens, lexical_errors = get_tokens(lexer)
     parser = parse(stream)
     parsing_errors = get_rules(parser)
-    return tokens, lexical_errors, parsing_errors
+    bytecode = get_bytecode(parser, name)
+    jasmin(bytecode, name)
+    return tokens, lexical_errors, parsing_errors, bytecode
 
 
 
 if __name__ == '__main__':
     with open(sys.argv[1]) as f:
-        run(f.read())
+        run(f.read(), sys.argv[2])

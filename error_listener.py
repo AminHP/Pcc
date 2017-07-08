@@ -1,11 +1,4 @@
-from pccListener import pccListener
 from antlr4.error.ErrorListener import ErrorListener
-
-
-class pccPrintListener(pccListener):
-    def enterInt_dec(self, ctx):
-        #print "pcc: %s" % ctx.Id()
-        pass
 
 
 class pccLexerErrorListener(ErrorListener):

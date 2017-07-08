@@ -26,8 +26,10 @@ class Manager:
 
     def actionCompile_cliecked(self):
         code = self.ui_mainwindow.codeTextEdit.toPlainText()
+        name = str(self.ui_mainwindow.nameLineEdit.text())
+
         if code:
-            tokens, lexical_errors, parsing_errors = run(code)
+            tokens, lexical_errors, parsing_errors, bytecode = run(code, name)
 
             self.ui_mainwindow.tokenListWidget.clear()
             self.ui_mainwindow.lexerListWidget.clear()
