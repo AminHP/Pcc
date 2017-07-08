@@ -90,7 +90,8 @@ def run(code, name):
     parser = parse(stream)
     parsing_errors = get_rules(parser)
     bytecode = get_bytecode(parser, name)
-    jasmin(bytecode, name)
+    if not lexical_errors and not parsing_errors:
+        jasmin(bytecode, name)
     return tokens, lexical_errors, parsing_errors, bytecode
 
 
