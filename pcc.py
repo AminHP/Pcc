@@ -66,7 +66,7 @@ def get_rules(parser):
     return all_errors
 
 
-def jasmin(bytecode, name):
+def create_class_file(bytecode, name):
     if not os.path.exists('output'):
         os.mkdir('output')
     bcfile = os.path.join('output', name + '.bc')
@@ -91,7 +91,7 @@ def run(code, name):
     parsing_errors = get_rules(parser)
     bytecode = get_bytecode(parser, name)
     if not lexical_errors and not parsing_errors:
-        jasmin(bytecode, name)
+        create_class_file(bytecode, name)
     return tokens, lexical_errors, parsing_errors, bytecode
 
 
