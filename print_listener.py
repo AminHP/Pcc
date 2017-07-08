@@ -12,20 +12,24 @@ class pccPrintListener(pccListener):
         return self.code
 
 
+    def _add_ins(self, instruction):
+        self.code += instruction + '\n'
+
+
     def enterProgram(self, ctx):
-        self.code += '.class public %s' % self.name + '\n'
-        self.code += '.super java/lang/Object' + '\n'
+        self._add_ins('.class public %s' % self.name)
+        self._add_ins('.super java/lang/Object')
 
-        self.code += '.method public <init>()V' + '\n'
-        self.code += 'aload_0' + '\n'
-        self.code += 'invokenonvirtual java/lang/Object/<init>()V' + '\n'
-        self.code += 'return' + '\n'
-        self.code += '.end method' + '\n'
+        self._add_ins('.method public <init>()V')
+        self._add_ins('aload_0')
+        self._add_ins('invokenonvirtual java/lang/Object/<init>()V')
+        self._add_ins('return')
+        self._add_ins('.end method')
 
-        self.code += '.method public static main([Ljava/lang/String;)V' + '\n'
-        self.code += '.limit stack 10000' + '\n' # hardcoded!
+        self._add_ins('.method public static main([Ljava/lang/String;)V')
+        self._add_ins('.limit stack 10000') # hardcoded!
 
 
     def exitProgram(self, ctx):
-        self.code += "return" + '\n'
-        self.code += ".end method" + '\n'
+        self._add_ins("return")
+        self._add_ins(".end method")
