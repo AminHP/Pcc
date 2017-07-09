@@ -46,3 +46,8 @@ class SyntaxErrorException(Exception):
         self.msg = msg
         self.error_msg = "%s:%s: %s" % (line, column, msg)
         super(SyntaxErrorException, self).__init__(self.error_msg)
+
+
+class NotDeclaredException(Exception):
+    def __init__(self, identifier):
+        super(NotDeclaredException, self).__init__("'%s' not declared" % identifier)

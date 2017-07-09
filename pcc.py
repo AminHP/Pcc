@@ -85,13 +85,20 @@ def create_class_file(bytecode, name):
 
 
 def run(code, name):
+    # analyze
     lexer, stream = lex(load_code(code))
     tokens, lexical_errors = get_tokens(lexer)
     parser = parse(stream)
     parsing_errors = get_rules(parser)
+
+    # generate code
+    lexer, stream = lex(load_code(code))
+    tokens, lexical_errors = get_tokens(lexer)
+    parser = parse(stream)
     bytecode = get_bytecode(parser, name)
     if not lexical_errors and not parsing_errors:
         create_class_file(bytecode, name)
+
     return tokens, lexical_errors, parsing_errors, bytecode
 
 
