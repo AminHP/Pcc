@@ -51,3 +51,8 @@ class SyntaxErrorException(Exception):
 class NotDeclaredException(Exception):
     def __init__(self, identifier):
         super(NotDeclaredException, self).__init__("'%s' not declared" % identifier)
+
+
+class RedeclarationException(Exception):
+    def __init__(self, identifier):
+        super(RedeclarationException, self).__init__("'%s' previously declared" % identifier)

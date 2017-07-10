@@ -1,5 +1,5 @@
 from pccListener import pccListener
-from error_listener import NotDeclaredException
+from error_listener import NotDeclaredException, RedeclarationException
 from pccLexer import pccLexer
 
 
@@ -10,6 +10,9 @@ class pccPrintListener(pccListener):
         self.name = name
         self.block_number = 0
         self.variable_number = 1
+        self.classes = {}
+        self.class_arrays = {}
+        self.field_table = {}
         self.variable_table = {}
         self.var_type_table = {
             'int': 'i',
@@ -18,7 +21,7 @@ class pccPrintListener(pccListener):
             'long': 'l',
             'char': 'i'
         }
-        self.print_var_type_table = {
+        self.desc_var_type_table = {
             'int': 'I',
             'float': 'F',
             'double': 'D',
@@ -35,6 +38,8 @@ class pccPrintListener(pccListener):
 
 
     def newVar(self, name, vtype):
+        if (name, self.block_number) in self.variable_table:
+            raise RedeclarationException(name)
         size = 2 if vtype in ('long', 'double') else 1
         self.variable_table[(name, self.block_number)] = (self.variable_number, vtype)
         self.variable_number += size
@@ -51,7 +56,7 @@ class pccPrintListener(pccListener):
 
 
     def getBytecode(self):
-        return self.code
+        return self.code, self.classes
 
 
     def _add_ins(self, instruction, var_type=None):
@@ -68,6 +73,40 @@ class pccPrintListener(pccListener):
 
         self._add_ins("%s %s" % (self.constant_table[var_type], constant))
 
+
+    def _add_class_ins(self, class_name, instruction):
+        if not class_name in self.classes:
+            self.classes[class_name] = ''
+        self.classes[class_name] += instruction + '\n'
+
+
+    def _create_class(self, class_name, fields):
+        self._add_class_ins(class_name, '.class %s' % class_name)
+        self._add_class_ins(class_name, '.super java/lang/Object')
+
+        arrays = []
+        field_table = {}
+
+        for field_name, field_type in fields:
+            field_table[field_name] = field_type
+            if isinstance(field_type, tuple):
+                array_type, array_size = field_type
+                desc = '[' + self.desc_var_type_table[array_type]
+                arrays.append((field_name, array_type, array_size, desc))
+            else:
+                desc = self.desc_var_type_table[field_type]
+            self._add_class_ins(class_name, '.field public %s %s' % 
+                    (field_name, desc))
+
+        self._add_class_ins(class_name, '.method <init>()V')
+        self._add_class_ins(class_name, 'aload_0')
+        self._add_class_ins(class_name, 'invokespecial java/lang/Object/<init>()V')
+
+        self._add_class_ins(class_name, 'return')
+        self._add_class_ins(class_name, '.end method')
+
+        self.class_arrays[class_name] = arrays
+        self.field_table[class_name] = field_table
 
 
     def enterCompoundStatement(self, ctx):
@@ -90,7 +129,7 @@ class pccPrintListener(pccListener):
         else:
             self._add_ins("load %s" % var_id, var_type)
 
-        self._add_ins("invokevirtual java/io/PrintStream/println(%s)V" % self.print_var_type_table[var_type])
+        self._add_ins("invokevirtual java/io/PrintStream/println(%s)V" % self.desc_var_type_table[var_type])
 
 
     def enterProgram(self, ctx):
@@ -114,30 +153,54 @@ class pccPrintListener(pccListener):
 
 
     def enterDeclaration(self, ctx):
-        var_type, ids, _ = list(ctx.getChildren())
-        var_type = var_type.getText()
+        if ctx.getText().startswith('struct'): # struct defination
+            if self.getLastChild(ctx.getChild(0)).getChildCount() == 4: # create class
+                spec_list, class_name, _ = list(ctx.getChildren())
+                class_name = class_name.getText()
+                spec_list = self.getLastChild(spec_list).getChild(-2)
+                fields = self.getClassFields(spec_list)
+                self._create_class(class_name, fields)
 
-        for child in ids.getChildren():
-            if child.getText() == ',':
-                continue
-            c = child.getChild(0)
-            c = self.getLastChild(child)
-            c_count = c.getChildCount()
-
-            if c_count == 0 or c_count == 3: # var
-                var_id = self.newVar((c.getChild(0) if c_count == 3 else c).getText(), var_type) # TODO: raise exception if variable exists
-                self._push_constant(0, var_type)
-                self._add_ins("store %s" % var_id, var_type)
-
-            elif c_count == 4: # array
-                var_id = self.newVar(c.getChild(0).getText(), var_type) # TODO: raise exception if variable exists
-                size = c.getChild(2).getText()
-                self._add_ins("ldc %s" % size)
-                self._add_ins("newarray %s" % var_type)
+            elif self.getLastChild(ctx.getChild(0)).getChildCount() == 2: # create instance
+                class_name = self.getLastChild(ctx.getChild(0)).getChild(1).getText()
+                var_id = self.newVar(ctx.getChild(1).getText(), class_name)
+                self._add_ins("new %s" % class_name)
+                self._add_ins("dup")
+                self._add_ins("invokespecial %s.<init>()V" % class_name)
                 self._add_ins("astore %s" % var_id)
 
-            if c_count == 3: # declration with assignment
-                self.enterAssignmentExpression(c)
+                # initialize arrays
+                for name, atype, size, desc in self.class_arrays[class_name]:
+                    self._add_ins("aload %s" % var_id)
+                    self._add_ins('ldc %s' % size)
+                    self._add_ins('newarray %s' % atype)
+                    self._add_ins('putfield %s.%s %s' % (class_name, name, desc))
+
+        elif ctx.getChildCount() == 3: # variable declration
+            var_type, ids, _ = list(ctx.getChildren())
+            var_type = var_type.getText()
+
+            for child in ids.getChildren():
+                if child.getText() == ',':
+                    continue
+                c = child.getChild(0)
+                c = self.getLastChild(child)
+                c_count = c.getChildCount()
+
+                if c_count == 0 or c_count == 3: # var
+                    var_id = self.newVar((c.getChild(0) if c_count == 3 else c).getText(), var_type)
+                    self._push_constant(0, var_type)
+                    self._add_ins("store %s" % var_id, var_type)
+
+                elif c_count == 4: # array
+                    var_id = self.newVar(c.getChild(0).getText(), var_type)
+                    size = c.getChild(2).getText()
+                    self._add_ins("ldc %s" % size)
+                    self._add_ins("newarray %s" % var_type)
+                    self._add_ins("astore %s" % var_id)
+
+                if c_count == 3: # declration with assignment
+                    self.enterAssignmentExpression(c)
 
 
     def enterAssignmentExpression(self, ctx):
@@ -158,7 +221,14 @@ class pccPrintListener(pccListener):
                 self._add_ins('astore', var_type)
 
             elif assignee.getChildCount() == 3: # struct
-                pass
+                identifier, _, field = list(assignee.getChildren())
+                field = field.getText()
+                var_id, class_name = self.getVar(identifier.getText(), self.block_number)
+                var_type = self.field_table[class_name][field]
+                desc = self.desc_var_type_table[var_type]
+                self._add_ins("aload %s" % var_id)
+                self.calculateExpression(value, var_type)
+                self._add_ins('putfield %s.%s %s' % (class_name, field, desc))
 
 
     def calculateExpression(self, ctx, var_type):
@@ -185,6 +255,14 @@ class pccPrintListener(pccListener):
         elif ctx.getChildCount() == 3: # expr
             if ctx.getChild(0).getText() == '(':
                 self.calculateExpression(ctx.getChild(1), var_type)
+            elif ctx.getChild(1).getText() == '.':
+                identifier, _, field = list(ctx.getChildren())
+                field = field.getText()
+                var_id, class_name = self.getVar(identifier.getText(), self.block_number)
+                var_type = self.field_table[class_name][field]
+                desc = self.desc_var_type_table[var_type]
+                self._add_ins("aload %s" % var_id)
+                self._add_ins('getfield %s.%s %s' % (class_name, field, desc))
             else:
                 i1, o, i2 = ctx.getChildren()
                 o = o.getText()
@@ -206,3 +284,23 @@ class pccPrintListener(pccListener):
         if ctx.getChildCount() == 0 or ctx.getChildCount() > 1:
             return ctx
         return self.getLastChild(ctx.getChild(0))
+
+
+    def getClassFields(self, spec_list):
+        fields = []
+        for spec in spec_list.getChildren():
+            spec = self.getLastChild(spec)
+            if spec.getChildCount() == 2:
+                fields += self.getClassFields(spec_list.getChild(0))
+            elif spec.getChildCount() == 3:
+                var_type = spec.getChild(0).getText()
+                for identifier in spec.getChild(1).getChildren():
+                    identifier = self.getLastChild(identifier)
+                    if identifier.getText() == ',':
+                        continue
+                    if identifier.getChildCount() == 0:
+                        fields.append((identifier.getText(), var_type))
+                    elif identifier.getChildCount() == 4:
+                        name, _, size, _ = identifier.getChildren()
+                        fields.append((name.getText(), (var_type, size.getText())))
+        return fields

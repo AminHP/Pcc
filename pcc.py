@@ -66,21 +66,24 @@ def get_rules(parser):
     return all_errors
 
 
-def create_class_file(bytecode, name):
+def create_class_file(bytecode, name, classes):
     if not os.path.exists('output'):
         os.mkdir('output')
-    bcfile = os.path.join('output', name + '.bc')
 
-    with open(bcfile, 'w') as f:
-        f.write(bytecode)
+    all_classes = classes.items() + [(name, bytecode)]
 
-    p = subprocess.Popen(['java', '-jar', 'bin/jasmin.jar', '-d', 'output', bcfile], 
-                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    p = p.communicate()
-    if p[0]:
-        print p[0]
-    if p[1]:
-        print p[1]
+    for class_name, class_bytecode in all_classes:
+        bcfile = os.path.join('output', class_name + '.bc')
+        with open(bcfile, 'w') as f:
+            f.write(class_bytecode)
+
+        p = subprocess.Popen(['java', '-jar', 'bin/jasmin.jar', '-d', 'output', bcfile], 
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = p.communicate()
+        if p[0]:
+            print p[0]
+        if p[1]:
+            print p[1]
 
 
 
@@ -95,11 +98,11 @@ def run(code, name):
     lexer, stream = lex(load_code(code))
     tokens, lexical_errors = get_tokens(lexer)
     parser = parse(stream)
-    bytecode = get_bytecode(parser, name)
+    bytecode, classes = get_bytecode(parser, name)
     if not lexical_errors and not parsing_errors:
-        create_class_file(bytecode, name)
+        create_class_file(bytecode, name, classes)
 
-    return tokens, lexical_errors, parsing_errors, bytecode
+    return tokens, lexical_errors, parsing_errors, (bytecode, classes)
 
 
 
