@@ -274,20 +274,38 @@ class pccPrintListener(pccListener):
             label = self.newLabel()
             self._add_ins("ifeq %s" % label)
 
-        elif selection_type == pccLexer.Switch:
-            pass
-
 
     def exitSelectionStatement(self, ctx):
-        self._add_ins("%s:" % self.lastLabel())
+        selection_type = ctx.getChild(0).getSymbol().type
+        if selection_type == pccLexer.If:
+            self._add_ins("%s:" % self.lastLabel())
+
+
+    def enterIterationStatement(self, ctx):
+        selection_type = ctx.getChild(0).getSymbol().type
+
+        if selection_type == pccLexer.While:
+            label = self.newLabel()
+            self.tmp_label = label
+            self._add_ins("%s:" % label)
+            self.calculateCondExpression(ctx.getChild(2))
+            label = self.newLabel()
+            self._add_ins("ifeq %s" % label)
+
+    def exitIterationStatement(self, ctx):
+        selection_type = ctx.getChild(0).getSymbol().type
+        if selection_type == pccLexer.While:
+            self._add_ins("goto %s" % self.tmp_label)
+            self._add_ins("%s:" % self.lastLabel())
 
 
     def calculateCondExpression(self, ctx):
 
         def compare(cmd, op1, op2):
-            t = self.getType(op1)
-            if t != self.getType(op2):
-                raise TypeError("wrong type '%s' and '%s'" % (op1.getText(), op2.getText()))
+            #t = self.getType(op1)
+            #if t != self.getType(op2):
+            #    raise TypeError("wrong type '%s' and '%s'" % (op1.getText(), op2.getText()))
+            t = 'int'
             self.calculateExpression(op1, t)
             self.calculateExpression(op2, t)
             self._add_ins('sub', t)
@@ -307,6 +325,7 @@ class pccPrintListener(pccListener):
             return
 
         op1, opr, op2 = list(c.getChildren())
+
         if opr.getText() == '==':
             compare('eq', op1, op2)
         elif opr.getText() == '>=':
