@@ -180,6 +180,13 @@ class pccPrintListener(pccListener):
         self._add_ins(".end method")
 
 
+    def enterPrintStatement(self, ctx):
+        var_type = ctx.getChild(4).getText()
+        self._add_ins("getstatic java/lang/System/out Ljava/io/PrintStream;")
+        self.calculateExpression(ctx.getChild(2), var_type)
+        self._add_ins("invokevirtual java/io/PrintStream/println(%s)V" % self.desc_var_type_table[var_type])
+
+
     def enterDeclaration(self, ctx):
         if ctx.getText().startswith('struct'): # struct defination
             if self.getLastChild(ctx.getChild(0)).getChildCount() == 4: # create class
@@ -273,7 +280,6 @@ class pccPrintListener(pccListener):
 
     def exitSelectionStatement(self, ctx):
         self._add_ins("%s:" % self.lastLabel())
-        self.println(1, 'int')
 
 
     def calculateCondExpression(self, ctx):
