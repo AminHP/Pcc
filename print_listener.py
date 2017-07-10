@@ -1,6 +1,7 @@
 from pccListener import pccListener
 from error_listener import NotDeclaredException, RedeclarationException
 from pccLexer import pccLexer
+from pccParser import pccParser
 
 
 class pccPrintListener(pccListener):
@@ -10,6 +11,7 @@ class pccPrintListener(pccListener):
         self.name = name
         self.block_number = 0
         self.variable_number = 1
+        self.label_number = 0
         self.classes = {}
         self.class_arrays = {}
         self.field_table = {}
@@ -53,6 +55,32 @@ class pccPrintListener(pccListener):
             if block < 0:
                 raise NotDeclaredException(name)
         return self.variable_table[(name, block)]
+
+
+    def newLabel(self):
+        self.label_number += 1
+        return "label_%s" % self.label_number
+
+
+    def lastLabel(self):
+        return "label_%s" % self.label_number
+
+
+    def getType(self, ctx):
+        ctx = self.getLastChild(ctx)
+        if ctx.getSymbol().type == pccLexer.Identifier: # identifier
+            var_id, vt = self.getVar(ctx.getText(), self.block_number)
+            return vt
+        text = ctx.getText().lower()
+        if text.endswith('l'):
+            return 'long'
+        if '.' in text:
+            return 'double'
+        if text.endswith('f') and '.' in text:
+            return 'float'
+        if text.startswith('\''):
+            return 'char'
+        return 'int'
 
 
     def getBytecode(self):
@@ -231,6 +259,93 @@ class pccPrintListener(pccListener):
                 self._add_ins('putfield %s.%s %s' % (class_name, field, desc))
 
 
+    def enterSelectionStatement(self, ctx):
+        selection_type = ctx.getChild(0).getSymbol().type
+
+        if selection_type == pccLexer.If:
+            self.calculateCondExpression(ctx.getChild(2))
+            label = self.newLabel()
+            self._add_ins("ifeq %s" % label)
+
+        elif selection_type == pccLexer.Switch:
+            pass
+
+
+    def exitSelectionStatement(self, ctx):
+        self._add_ins("%s:" % self.lastLabel())
+        self.println(1, 'int')
+
+
+    def calculateCondExpression(self, ctx):
+
+        def compare(cmd, op1, op2):
+            t = self.getType(op1)
+            if t != self.getType(op2):
+                raise TypeError("wrong type '%s' and '%s'" % (op1.getText(), op2.getText()))
+            self.calculateExpression(op1, t)
+            self.calculateExpression(op2, t)
+            self._add_ins('sub', t)
+
+            label1 = self.newLabel()
+            label2 = self.newLabel()
+            self._add_ins('if%s %s' % (cmd, label1))
+            self._add_ins('bipush 0')
+            self._add_ins('goto %s' % label2)
+            self._add_ins("%s:" % label1)
+            self._add_ins('bipush 1')
+            self._add_ins("%s:" % label2)
+
+        c = self.getLastChild(ctx)
+        if c.getChild(0).getText() == '(':
+            self.calculateCondExpression(c.getChild(1))
+            return
+
+        op1, opr, op2 = list(c.getChildren())
+        if opr.getText() == '==':
+            compare('eq', op1, op2)
+        elif opr.getText() == '>=':
+            compare('ge', op1, op2)
+        elif opr.getText() == '>':
+            compare('gt', op1, op2)
+        elif opr.getText() == '<=':
+            compare('le', op1, op2)
+        elif opr.getText() == '<':
+            compare('lt', op1, op2)
+        elif opr.getText() == '!=':
+            compare('ne', op1, op2)
+
+        elif opr.getText() == '&&':
+            self.calculateCondExpression(op1)
+            self.calculateCondExpression(op2)
+            self._add_ins('iadd')
+            self._add_ins('bipush 2')
+            self._add_ins('isub')
+
+            label1 = self.newLabel()
+            label2 = self.newLabel()
+            self._add_ins('ifeq %s' % (label1))
+            self._add_ins('bipush 0')
+            self._add_ins('goto %s' % label2)
+            self._add_ins("%s:" % label1)
+            self._add_ins('bipush 1')
+            self._add_ins("%s:" % label2)
+
+        elif opr.getText() == '||':
+            self.calculateCondExpression(op1)
+            self.calculateCondExpression(op2)
+            self._add_ins('iadd')
+
+            label1 = self.newLabel()
+            label2 = self.newLabel()
+            self._add_ins('ifgt %s' % (label1))
+            self._add_ins('bipush 0')
+            self._add_ins('goto %s' % label2)
+            self._add_ins("%s:" % label1)
+            self._add_ins('bipush 1')
+            self._add_ins("%s:" % label2)
+
+
+
     def calculateExpression(self, ctx, var_type):
         ctx = self.getLastChild(ctx)
 
@@ -279,10 +394,6 @@ class pccPrintListener(pccListener):
                     self._add_ins("div", var_type)
                 elif o == '%':
                     self._add_ins("rem", var_type)
-
-
-    def calculateCondExpression(self, ctx):
-        pass
 
 
     def getLastChild(self, ctx):
