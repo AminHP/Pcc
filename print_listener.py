@@ -277,7 +277,12 @@ class pccPrintListener(pccListener):
                     self._add_ins("mul", var_type)
                 elif o == '/':
                     self._add_ins("div", var_type)
+                elif o == '%':
+                    self._add_ins("rem", var_type)
 
+
+    def calculateCondExpression(self, ctx):
+        pass
 
 
     def getLastChild(self, ctx):
