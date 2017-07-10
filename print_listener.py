@@ -44,11 +44,19 @@ class pccPrintListener(pccListener):
         self.block_number -=1
 
 
-    def println(self, var_id, var_type):
+    def println(self, var_id, var_type, arr_index=None):
         if var_type == 'int':
             var_type = 'I'
+
         self._add_ins("getstatic java/lang/System/out Ljava/io/PrintStream;")
-        self._add_ins("iload %s" % var_id)
+
+        if arr_index:
+            self._add_ins('aload %s' % var_id)
+            self._add_ins('bipush %s' % arr_index)
+            self._add_ins('iaload')
+        else:
+            self._add_ins("iload %s" % var_id)
+
         self._add_ins("invokevirtual java/io/PrintStream/println(%s)V" % var_type)
 
 
@@ -74,62 +82,71 @@ class pccPrintListener(pccListener):
 
     def enterDeclaration(self, ctx):
         vartype, ids, _ = list(ctx.getChildren())
-        v = vartype.getText()
+        vartype = vartype.getText()
 
         for child in ids.getChildren():
-            if child.getChildCount() == 1:
-                var_id = self.newVar(child.getChild(0).getText())
-                if v == 'int':
-                    self._add_ins("bipush 0")
-                    self._add_ins("istore %s" % var_id)
-                elif v == 'float':
-                    self._add_ins("bipush 0")
-                    self._add_ins("fstore %s" % var_id)
-                elif v == 'double':
-                    self._add_ins("bipush 0")
-                    self._add_ins("dstore %s" % var_id)
-                elif v == 'char':
+            if child.getText() == ',':
+                continue
+            c = child.getChild(0)
+            c = self.getLastChild(child)
+            c_count = c.getChildCount()
+
+            if c_count == 0 or c_count == 3: # var
+                var_id = self.newVar((c.getChild(0) if c_count == 3 else c).getText()) # TODO: raise exception if variable exists
+                if vartype == 'int':
                     self._add_ins("bipush 0")
                     self._add_ins("istore %s" % var_id)
 
-            elif child.getChildCount() == 3:
-                if child.getChild(0).getChild(0).getChildCount() == 1: # pp array
-                    var_id = self.newVar(child.getChild(0).getText())
-                    if v == 'int':
-                        c = self.getLastChild(child.getChild(2))
-                        if c.getChildCount() > 1:
-                            self.calculateExpression(c)
-                        else:
-                            self._add_ins("bipush %s" % child.getChild(2).getText())
-                        self._add_ins("istore %s" % var_id)
-                    elif v == 'float':
-                        self._add_ins("bipush %s" % child.getChild(2).getText())
-                        self._add_ins("fstore %s" % var_id)
-                    elif v == 'double':
-                        self._add_ins("bipush %s" % child.getChild(2).getText())
-                        self._add_ins("dstore %s" % var_id)
-                    elif v == 'char':
-                        self._add_ins("bipush %s" % ord(child.getChild(2).getText()[1]))
-                        self._add_ins("istore %s" % var_id)
-                else:
-                    size = child.getChild(0).getChild(0).getChild(2).getText()
-                    var_id = self.newVar(child.getChild(0).getChild(0).getChild(0).getText())
-                    self._add_ins("bipush %s" % size)
-                    self._add_ins("newarray %s" % v)
-                    self._add_ins("astore %s" % var_id)
+            elif c_count == 4: # array
+                var_id = self.newVar(c.getChild(0).getText()) # TODO: raise exception if variable exists
+                size = c.getChild(2).getText()
+                self._add_ins("bipush %s" % size)
+                self._add_ins("newarray %s" % vartype)
+                self._add_ins("astore %s" % var_id)
+
+            if c_count == 3: # declration with assignment
+                self.enterAssignmentExpression(c)
+
+
+    def enterAssignmentExpression(self, ctx):
+        if ctx.getChildCount() == 3:
+            assignee, _, value = list(ctx.getChildren())
+            assignee = self.getLastChild(assignee)
+            if assignee.getChildCount() == 0: # identifier
+                var_id = self.getVar(assignee.getText(), self.block_number)
+                self.calculateExpression(value)
+                self._add_ins("istore %s" % var_id)
+
+            elif assignee.getChildCount() == 4: # array
+                var_id = self.getVar(assignee.getChild(0).getText(), self.block_number)
+                index = assignee.getChild(2)
+                self._add_ins('aload %s' % var_id)
+                self.calculateExpression(index)
+                self.calculateExpression(value)
+                self._add_ins('iastore')
+
+            elif assignee.getChildCount() == 3: # struct
+                pass
 
 
     def calculateExpression(self, ctx):
         ctx = self.getLastChild(ctx)
 
-        if ctx.getChildCount() == 0:
+        if ctx.getChildCount() == 0: # identifier or constant value
             if ctx.getSymbol().type == pccLexer.Identifier:
                 var_id = self.getVar(ctx.getText(), self.block_number)
                 self._add_ins("iload %s" % var_id)
             else:
                 self._add_ins("bipush %s" % ctx.getText())
 
-        elif ctx.getChildCount() == 3:
+        if ctx.getChildCount() == 4: # array value
+            var_id = self.getVar(ctx.getChild(0).getText(), self.block_number)
+            arr_index = ctx.getChild(2)
+            self._add_ins('aload %s' % var_id)
+            self.calculateExpression(arr_index)
+            self._add_ins('iaload')
+
+        elif ctx.getChildCount() == 3: # expr
             if ctx.getChild(0).getText() == '(':
                 self.calculateExpression(ctx.getChild(1))
             else:
