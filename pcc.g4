@@ -286,6 +286,7 @@ statement
     |   selectionStatement
     |   iterationStatement
     |   jumpStatement
+    |   printStatement
     ;
 
 labeledStatement
@@ -327,6 +328,10 @@ jumpStatement
     :   'continue' ';'
     |   'break' ';'
     |   'return' expression? ';'
+    ;
+
+printStatement
+    :   'printf' '(' primaryExpression ',' typeSpecifier ')' ';'
     ;
 
 program
