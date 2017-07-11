@@ -98,11 +98,16 @@ def run(code, name):
     lexer, stream = lex(load_code(code))
     tokens, lexical_errors = get_tokens(lexer)
     parser = parse(stream)
-    bytecode, classes = get_bytecode(parser, name)
-    if not lexical_errors and not parsing_errors:
-        create_class_file(bytecode, name, classes)
 
-    return tokens, lexical_errors, parsing_errors, (bytecode, classes)
+    convert_error = ''
+    try:
+        bytecode, classes = get_bytecode(parser, name)
+        if not lexical_errors and not parsing_errors:
+            create_class_file(bytecode, name, classes)
+    except Exception as e:
+        convert_error = e
+
+    return tokens, lexical_errors, parsing_errors, convert_error
 
 
 

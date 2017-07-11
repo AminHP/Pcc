@@ -29,19 +29,27 @@ class Manager:
         name = str(self.ui_mainwindow.nameLineEdit.text())
 
         if code:
-            tokens, lexical_errors, parsing_errors, bytecode = run(code, name)
+            tokens, lexical_errors, parsing_errors, convert_error = run(code, name)
 
-            self.ui_mainwindow.tokenListWidget.clear()
-            self.ui_mainwindow.lexerListWidget.clear()
-            self.ui_mainwindow.parserListWidget.clear()
+            if convert_error:
+                msg = QtGui.QMessageBox()
+                msg.setWindowTitle("Error")
+                msg.setText(str(convert_error))
+                msg.setStandardButtons(QtGui.QMessageBox.Ok)
+                msg.exec_()
+            else:
 
-            for (sym, token) in tokens:
-                text = "%s:%s: %s -> %s" % (token.line, token.column, sym, token.text)
-                self.ui_mainwindow.tokenListWidget.addItem(text)
-            for error in lexical_errors:
-                self.ui_mainwindow.lexerListWidget.addItem(error.error_msg)
-            for error in parsing_errors:
-                self.ui_mainwindow.parserListWidget.addItem(error.error_msg)
+                self.ui_mainwindow.tokenListWidget.clear()
+                self.ui_mainwindow.lexerListWidget.clear()
+                self.ui_mainwindow.parserListWidget.clear()
+
+                for (sym, token) in tokens:
+                    text = "%s:%s: %s -> %s" % (token.line, token.column, sym, token.text)
+                    self.ui_mainwindow.tokenListWidget.addItem(text)
+                for error in lexical_errors:
+                    self.ui_mainwindow.lexerListWidget.addItem(error.error_msg)
+                for error in parsing_errors:
+                    self.ui_mainwindow.parserListWidget.addItem(error.error_msg)
 
 
 
