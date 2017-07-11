@@ -12,6 +12,7 @@ class pccPrintListener(pccListener):
         self.block_number = 0
         self.variable_number = 1
         self.label_number = 0
+        self.tmp_label = []
         self.classes = {}
         self.class_arrays = {}
         self.field_table = {}
@@ -187,7 +188,10 @@ class pccPrintListener(pccListener):
         self._add_ins("invokevirtual java/io/PrintStream/println(%s)V" % self.desc_var_type_table[var_type])
 
 
-    def enterDeclaration(self, ctx):
+    def enterDeclaration(self, ctx, manual=False):
+        if not manual and 'for' in ctx.parentCtx.getText():
+            return
+
         if ctx.getText().startswith('struct'): # struct defination
             if self.getLastChild(ctx.getChild(0)).getChildCount() == 4: # create class
                 spec_list, class_name, _ = list(ctx.getChildren())
@@ -238,7 +242,12 @@ class pccPrintListener(pccListener):
                     self.enterAssignmentExpression(c)
 
 
-    def enterAssignmentExpression(self, ctx):
+    def enterAssignmentExpression(self, ctx, manual=False):
+        if not manual and 'for' in ctx.parentCtx.parentCtx.getText():
+            return
+        if manual:
+            ctx = self.getLastChild(ctx)
+
         if ctx.getChildCount() == 3:
             assignee, _, value = list(ctx.getChildren())
             assignee = self.getLastChild(assignee)
@@ -286,17 +295,38 @@ class pccPrintListener(pccListener):
 
         if selection_type == pccLexer.While:
             label = self.newLabel()
-            self.tmp_label = label
+            self.tmp_label.append(label)
             self._add_ins("%s:" % label)
             self.calculateCondExpression(ctx.getChild(2))
+            label = self.newLabel()
+            self._add_ins("ifeq %s" % label)
+
+        elif selection_type == pccLexer.For:
+            self.enterCompoundStatement(None)
+            if ctx.getChild(2).getText() != ';':
+                self.enterDeclaration(ctx.getChild(2), True)
+            label = self.newLabel()
+            self.tmp_label.append(label)
+            self._add_ins("%s:" % label)
+            if ctx.getChild(3).getText() != ';':
+                self.calculateCondExpression(ctx.getChild(3))
+            else:
+                self._add_ins('bipush 1')
             label = self.newLabel()
             self._add_ins("ifeq %s" % label)
 
     def exitIterationStatement(self, ctx):
         selection_type = ctx.getChild(0).getSymbol().type
         if selection_type == pccLexer.While:
-            self._add_ins("goto %s" % self.tmp_label)
+            self._add_ins("goto %s" % self.tmp_label.pop(-1))
             self._add_ins("%s:" % self.lastLabel())
+
+        elif selection_type == pccLexer.For:
+            if ctx.getChild(5).getText() != ';':
+                self.enterAssignmentExpression(ctx.getChild(5), True)
+            self._add_ins("goto %s" % self.tmp_label.pop(-1))
+            self._add_ins("%s:" % self.lastLabel())
+            self.exitCompoundStatement(None)
 
 
     def calculateCondExpression(self, ctx):
