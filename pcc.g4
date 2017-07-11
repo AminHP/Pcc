@@ -331,7 +331,7 @@ jumpStatement
     ;
 
 printStatement
-    :   'printf' '(' primaryExpression ',' typeSpecifier ')' ';'
+    :   'printf' '(' expression ',' typeSpecifier ')' ';'
     ;
 
 program
